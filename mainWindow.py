@@ -5,6 +5,7 @@ from VeliavosDB import *
 from io import BytesIO
 from random import choice, sample, shuffle
 
+
 class MainWindow:
     def __init__(self, root, title, width, height, resizable=True, icon=None):
 
@@ -36,11 +37,8 @@ class MainWindow:
         self.widget_frame = tk.Frame(self.root)   # sukuriam FRAME
 
         """ Widgetai """
-        self.background = tk.PhotoImage(file='Earth.png')
+        self.background = tk.PhotoImage(file='Images/Earth.png')
         self.background_label = tk.Label(self.widget_frame, image=self.background)
-
-        hearts_image = Image.open('HeartsBG.png')
-        self.background_hearts = ImageTk.PhotoImage(hearts_image)
 
         self.country_flag_label = tk.Label(self.widget_frame, bd=0)
 
@@ -71,6 +69,7 @@ class MainWindow:
         self.option3.grid(row=4, column=1, sticky='w', padx=10, pady=5)
 
 
+    # sitas metodas bus aktyvuojamas, kai paspaudziamas mygtukas, kuris patvirtina pasirinkta atsakyma
     def show_choice(self):
         chosen_option_value = self.choice_var.get()
         if chosen_option_value:
@@ -84,19 +83,25 @@ class MainWindow:
             if chosen_option_text == self.current_country[0]:
                 print('TEISINGAI!')
                 self.taskai += 1
-                if self.taskai == 10:
-                    print('LAIMĖJOTE!')
-                self.taskai_button.config(text=f"Taškai: {self.taskai}")
-                self.show_new_question()  # Show a new question after user's choice
+                self.update_taskai_button()
+                self.show_new_question()                # kvieciame funkcija, kad rodytu kita klausima, nes sitas jau atsakytas.
             else:
-                self.open_wrong_answer_window()
+                self.open_wrong_answer_window()         # jei atsakymas neteisingas, naujo klausimo nekvieciame, ir ismetame lentele su X.
                 print('NETEISINGAI! -1 gyvybė.')
                 self.gyvybes -= 1
+                self.update_gyvybes_button()
                 if self.gyvybes == 0:
-                    print('GAME OVER')
-                self.gyvybes_button.config(text=f"Gyvybės: {self.gyvybes}")
+                    self.open_game_over_window()
         else:
             print("Nieko nepasirinkote.")
+
+    def update_taskai_button(self):
+        if hasattr(self, 'taskai_button'):
+            self.taskai_button.config(text=f"Taškai: {self.taskai}")
+
+    def update_gyvybes_button(self):
+        if hasattr(self, 'gyvybes_button'):
+            self.gyvybes_button.config(text=f"Gyvybės: {self.gyvybes}")
 
     def show_new_question(self):
         # Generate a new question
@@ -132,16 +137,32 @@ class MainWindow:
         self.country_flag_label.config(image=flag_tk)
         self.country_flag_label.image = flag_tk
 
-    def open_smaller_window(self):
-        smaller_window = SmallerWindow(self.root, "Pop-up", 300, 200)
+    def open_game_over_window(self):
+        game_over_window = SmallerWindow(self.root, title="GAME OVER", width=250, height=200, text=f'GAME OVER\n Jūsų rezultatas:{self.taskai}', game_over=True, main_window_instance=self)
 
     def open_wrong_answer_window(self):
-        wrong_answer_window = SmallerWindow(self.root, "-1 LIFE", 220, 150, icon='sad.ico')
+        wrong_answer_window = SmallerWindow(parent=self.root, title="-1 LIFE", width=220, height=150, bg_image='Images/red_X.png', icon='Images/sad.ico')
 
-    def run(self):
-        self.draw_widgets()
+    def close_program(self):
+        self.root.destroy()
+        self.root.quit()
+
+    def restart_program(self):
+        # Reset variables and widget states here
+
+        self.gyvybes = 3
+        self.taskai = 0
+        self.update_taskai_button()
+        self.update_gyvybes_button()
         self.show_new_question()
-        self.root.mainloop()
+
+
+
+# run() funkcija, kurioje nurodome kokia eiles tvarka vyksta programa.
+    def run(self):
+        self.draw_widgets()             # 1. sustatom pradinius mygtukus ir layouta visa.
+        self.show_new_question()        # 2. generuojame ir rodome nauja klausima.
+        self.root.mainloop()            # 3. paleidziama pagrindini loop, kur jau leidziama vartotojui daryti dalykus.
 
 def main():
     """ Sukuriamas tk.Tk() klases objektas, kuris leidzia mums naudoti metodus kaip .geometry, .resizable ir pan.
@@ -149,21 +170,22 @@ def main():
         Ir galiausiai paleidziame run() metoda ant app objekto."""
 
     root = tk.Tk()
-    app = MainWindow(root, "Vėliavos", 800, 400, resizable=False, icon='Globe.ico')
+    app = MainWindow(root, "Vėliavos", 800, 400, resizable=False, icon='Images/Globe.ico')   # sukuria Pagrindini programos langa.
 
     """Viskas vienoje eiluteje atrodytu taip: * MainWindow(tk.Tk(), "Main Window", 500, 400).run() *
         Isskirstome veiksmus, del aiskumo."""
 
-    conn = connect_database('veliavosDB.db')
-    countries_and_flags = fetch_countries_and_flags(conn)
+    conn = connect_database('veliavosDB.db')                                                # prisijungiame duomenu baze
+    countries_and_flags = fetch_countries_and_flags(conn)                                   # istraukiame veliavu ir saliu info is duomenu bazes ir priskiriame kintamajam 'countries_and_flags'
 
     for country_name, flag_blob in countries_and_flags:
         flag_image = Image.open(BytesIO(flag_blob))
         app.countries.append((country_name, flag_image))
 
-    conn.close()
-    app.run()
+    conn.close()                                                                            # iskart uzdarome duomenu baze
+    app.run()                                                                               # paleidziame programa
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":                      # leidzia aktyvuoti main() tiktai, jei paleidziama programa is sio failo, ne kaip modulis.
     main()
+
